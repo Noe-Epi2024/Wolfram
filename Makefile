@@ -1,18 +1,13 @@
-##
-## EPITECH PROJECT, 2020
-## B-FUN-400-PAR-4-1-wolfram-noe.jais
-## File description:
-## Makefile
-##
-
 NAME = wolfram
 
 all:
-	stack build
-	stack install --local-bin-path .
+	cabal build
+
+run:
+	cabal run $(NAME) -- --rule 30 --lines 20
 
 clean:
-	stack clean
+	cabal clean
 
 fclean: clean
 	rm -f $(NAME)

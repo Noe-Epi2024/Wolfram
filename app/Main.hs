@@ -8,8 +8,7 @@ import Text.Read
 import Numeric
 
 import Error
-
-import Rule
+import Automaton
 
 main :: IO ()
 main = do
@@ -52,30 +51,32 @@ getOpts conf ("--move":value:xs) = case readMaybe value :: Maybe Int of
 getOpts conf _ = Nothing
 
 checkRule :: Maybe Conf -> Maybe Conf
-checkRule conf@(Just (Conf (Just 30) _ _ _ _)) = conf -- (rule30 ("  " ++ xs)) (nb + 1)
-checkRule conf@(Just (Conf (Just 90) _ _ _ _)) = conf
-checkRule conf@(Just (Conf (Just 110) _ _ _ _)) = conf
-checkRule conf@(Just (Conf rule _ _ _ _))
-    | rule /= Just 30 = Nothing 
-    | rule /= Just 90 = Nothing 
-    | rule /= Just 110 = Nothing 
+checkRule conf@(Just (Conf (Just rule) _ _ _ _))
+    | rule < 0 || rule > 255 = Nothing
     | otherwise = conf
+checkRule _ = Nothing
 
 giveRule :: Conf -> String -> String
-giveRule conf@((Conf (Just 30) _ _ _ _)) xs = rule30 ("  " ++ xs)
-giveRule conf@((Conf (Just 90) _ _ _ _)) xs = rule90 ("  " ++ xs)
-giveRule conf@((Conf (Just 110) _ _ _ _)) xs = rule110 ("  " ++ xs)
+giveRule conf@((Conf (Just rule) _ _ _ _)) xs = generateNextLine rule xs
 
 wolfram :: Conf -> String -> Int -> IO ()
 wolfram conf@((Conf _ _ (Just 0) _ _)) _ _ = return ()
-wolfram conf@((Conf _ 0 (Just ln) _ _)) xs nb = displayString xs nb >> wolfram (conf{line = Just (ln - 1)}) (giveRule conf xs) (nb + 1)
+wolfram conf@((Conf _ 0 (Just ln) _ _)) xs nb = displayString conf xs >> wolfram (conf{line = Just (ln - 1)}) (giveRule conf xs) (nb + 1)
 wolfram conf@((Conf _ st _ _ _)) xs nb = putStr "" >> wolfram (conf{start = st - 1}) (giveRule conf xs) (nb + 1)
 
-displayString :: String -> Int -> IO ()
-displayString xs nb = putStrLn (take (length xs - ((nb * 2) - 2)) (drop (nb - 1) xs))
+displayString :: Conf -> String -> IO ()
+displayString (Conf _ _ _ window move) xs =
+    putStrLn $ take window $ drop center xs
+    where
+        center = (length xs `div` 2 - window `div` 2) + move
 
 createString :: Int -> String
-createString 0 = []
-createString nb
-    | even nb = replicate (nb `div` 2) ' ' ++ "*" ++ replicate ((nb `div` 2) - 1) ' '
-    | otherwise = replicate (nb `div` 2) ' ' ++ "*" ++ replicate (nb `div` 2) ' '
+createString window = replicate (window `div` 2) ' ' ++ "■" ++ replicate (window - window `div` 2 - 1) ' '
+
+generateNextLine :: Int -> String -> String
+generateNextLine rule xs = map (applyRule rule) (windows xs)
+
+windows :: String -> [(Char, Char, Char)]
+windows xs = zip3 padded (tail padded) (tail (tail padded))
+  where
+    padded = "  " ++ xs ++ "  "
